@@ -20,16 +20,14 @@ const int clockPin = 12;
 const int dataPin = 11;
 
 //HumiTemp sensor
-#define DHTPIN 2
+#define DHTPIN 7
 #define DHTTYPE DHT22
-DHT_Unified dht(DHTPIN, DHTTYPE);
-uint32_t delayMS;
-int temp = 0;
+DHT dht(DHTPIN, DHTTYPE);
+float temp = 0;
 
 //Change I2c ports
 void PortChange(uint8_t bus) //function of TCA9548A
 {
-  Wire.end();
   Wire.beginTransmission(0x70);  // TCA9548A address is 0x70
   Wire.write(1 << bus);  
   Wire.read();        // send byte to select bus
@@ -39,11 +37,10 @@ void PortChange(uint8_t bus) //function of TCA9548A
 
 boolean getTemp() {
   sensors_event_t event;
-  dht.temperature().getEvent(&event);
-  if (isnan(event.temperature)) {
+  if (isnan(dht.readTemperature())) {
     return false;
   } else {
-    temp = event.temperature;
+    temp = dht.readTemperature()*9/5+32;
     return true;
   }
 }
@@ -51,33 +48,35 @@ boolean getTemp() {
 int updateTempLights() {
   //turn on leds based on temp. Output 
   if (getTemp()) {
-    if (temp <0) {
-      return 0;
-    }
-    else if (temp < 10) {
+    if (temp <77) {
       return 1;
     }
-    else if (temp < 20) {
+    else if (temp < 78) {
+      return 1;
+    }
+    else if (temp < 79) {
       return 2;
     }
-    else if (temp < 30) {
+    else if (temp < 80) {
       return 3;
     }
-    else if (temp < 40) {
+    else if (temp < 81) {
       return 4;
     }
-    else if (temp < 50) {
+    else if (temp < 82) {
       return 5;
     }
-    else if (temp < 60) {
+    else if (temp < 83) {
       return 6;
     }
-    else if (temp < 70) {
+    else if (temp < 84) {
       return 7;
     }
     else{
       return 8;
     }
+  } else {
+    Serial.println("Failed to read from DHT sensor!");
   }
 
   }
@@ -107,12 +106,13 @@ void setup() {
   Wire.begin();
   Serial.begin(9600);
 
+  pinMode(latchPin, OUTPUT);
+  pinMode(clockPin, OUTPUT);
+  pinMode(dataPin, OUTPUT);
+
+
   //init humitemp sensor
   dht.begin();
-  sensor_t sensor;
-  dht.temperature().getSensor(&sensor);
-  dht.humidity().getSensor(&sensor);
-  delayMS = sensor.min_delay / 1000;
 
   //init display
   PortChange(7);
@@ -137,7 +137,7 @@ void loop() {
   displayLevel(tempNum, tempNum);
   //delay 
   Serial.println(temp);
-  delay(500);
+  delay(1000);
   
 }
 
