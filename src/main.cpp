@@ -32,7 +32,7 @@ float hum = 0;
 #define MAX_DISTANCE 500 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 float distance = 0;
 const int distrange = 20; //set distance range in inches
-const int diststart = 100; //set distance start in inches
+const int diststart = 110; //set distance start in inches
 
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
@@ -56,13 +56,13 @@ boolean getDistance() {
   distance = distance * 100; // meters to centimeters
   Serial.print(F("Distance: "));
   Serial.print(distance);
-  //set distance to 1-5
+  /*set distance to 1-5
   if (distance <= diststart) {distance = 1;}
   else if (distance <= diststart+distrange) {distance = 2;}
   else if (distance <= diststart+distrange*2) {distance = 3;}
   else if (distance <= diststart+distrange*3) {distance = 4;}
   else if (distance >= diststart+distrange*4) {distance = 5;}
-  
+  */
   if (distance == 0) {
     return false;
   } else {
@@ -144,10 +144,28 @@ void displayLevel(int levelR, int levelL) {
 }
 
 //Display Display on OLED
-void displayDistance() {
+void displayDistTemp() {
   if (getDistance()) {
     PortChange(7);
     display.clearDisplay();
+    display.setCursor(8, 16);
+    display.setTextSize(6);
+    display.setTextColor(SSD1306_WHITE);
+    display.print((int)distance);
+    display.setTextSize(2);
+    display.setCursor(102, 46);
+    display.print("cm");
+
+    //Status bar
+    display.drawRect(0, 0, 128, 16, SSD1306_WHITE);
+    int mapdistance = map(distance, 40, diststart+distrange*5, 0, 122);
+    display.fillRect(3, 3, mapdistance, 10, SSD1306_WHITE);
+    int mapTar = map(diststart+distrange*2, 0, diststart+distrange*5, 0, 122);
+    display.drawLine(mapTar, 0, mapTar, 16, SSD1306_WHITE);
+    display.fillCircle(mapTar, 16, 4, SSD1306_WHITE);
+    display.display();
+  }
+    /*display.clearDisplay();
     if (distance == 1 || distance == 0) {
       display.drawRect(40, 64-12-12-12-12-13, 48, 9, SSD1306_WHITE);
     }
@@ -177,8 +195,31 @@ void displayDistance() {
     Serial.println(distance);
     
   } else {
+    PortChange(7);
     Serial.println(F("Failed to read from sensor!"));
-  }
+    display.setCursor(0, 0);
+    display.setTextSize(5);
+    display.setTextColor(SSD1306_WHITE);
+    display.println(F("*"));
+    display.display();
+  } */
+  PortChange(6);
+  display.clearDisplay();
+  display.setTextSize(6);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(32, 16);
+  display.print((int)temp);
+  display.setTextSize(2);
+  display.setCursor(102, 46);
+  display.print("F");
+  display.setCursor(56, 0);
+  display.setTextSize(2);
+  display.print((int)hum);
+  display.setTextSize(1);
+  display.setCursor(80, 8);
+  display.print("%");
+  display.display();
+
 }
 
 void setup() {
@@ -215,7 +256,7 @@ void loop() {
   //sends data to 74hc595
   displayLevel(tempNum, tempNum);
   //display distance on OLED
-  displayDistance();
+  displayDistTemp();
   //delay 
   
   delay(1000);
