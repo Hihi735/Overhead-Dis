@@ -41,9 +41,9 @@ NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and
 #define DC_One A0
 #define DC_Two A1
 //Define spectrum variables
-int freq_amp;
-int Frequencies_One[7][3];
-int Frequencies_Two[7][3];
+int freq;
+int Freq1[7][7];
+int Freq2[7][7];
 int isPeak_One[7];
 int isPeak_Two[7];
 int i;
@@ -246,7 +246,7 @@ void Read_Frequencies() {
   delayMicroseconds(50);
 
   //Read frequencies for each band
-  for (freq_amp = 0; freq_amp < 7; freq_amp++)
+  for (freq = 0; freq < 7; freq++)
   {
     digitalWrite(STROBE, HIGH);
     delayMicroseconds(20);
@@ -254,44 +254,45 @@ void Read_Frequencies() {
     delayMicroseconds(20);
     
     //Read the first DC value
-    Frequencies_One[freq_amp][2] = Frequencies_One[freq_amp][1];
-    Frequencies_One[freq_amp][1] =  Frequencies_One[freq_amp][0];
-    Frequencies_One[freq_amp][0] = analogRead(DC_One);
+    //Shift all values by 1 up the list
+    for (int i = 6; i > 0; i--) {
+      Freq1[freq][i] = Freq1[freq][i-1];
+      Freq2[freq][i] = Freq2[freq][i-1];
+    }
+    Freq1[freq][0] = analogRead(DC_One);
+    Freq2[freq][0] = analogRead(DC_Two);
 
-    //Read the second DC value
-    Frequencies_Two[freq_amp][2] = Frequencies_Two[freq_amp][1];
-    Frequencies_Two[freq_amp][1] =  Frequencies_Two[freq_amp][0];
-    Frequencies_Two[freq_amp][0] = analogRead(DC_Two);
-    if (Frequencies_One[freq_amp][0] < 90)
-    {
-      isPeak_One[freq_amp] = 0;
+    if (Freq1[freq][0] < 90) {
+      isPeak_One[freq] = 0;
     }
-    else
-    {
+    else {
       //Check for peaks (if the difference between the first and second DC values is greater than 10 and if the second and third DC values are less than the first and second DC values)
-      if ((Frequencies_One[freq_amp][0] - Frequencies_One[freq_amp][1] > 50) || (Frequencies_One[freq_amp][2]+Frequencies_One[freq_amp][1] < Frequencies_One[freq_amp][1]+Frequencies_One[freq_amp][0]))
-      {
+      if ((Freq1[freq][0] - Freq1[freq][1] > 50)) {
         //Display the peak
-        isPeak_One[freq_amp] = 1;
+        isPeak_One[freq] = 1;
       }
-      else
-      {
-        isPeak_One[freq_amp] = 0;
+      //Checks the sum of the first and second DC values to the sum of the second and third DC values. Repeat for the rest of the list
+      else if ((Freq1[freq][0] + Freq1[freq][1] > Freq1[freq][1] + Freq1[freq][2]) || (Freq1[freq][1] + Freq1[freq][2] > Freq1[freq][2] + Freq1[freq][3]) || (Freq1[freq][2] + Freq1[freq][3] > Freq1[freq][3] + Freq1[freq][4]) || (Freq1[freq][3] + Freq1[freq][4] > Freq1[freq][4] + Freq1[freq][5]) || (Freq1[freq][4] + Freq1[freq][5] > Freq1[freq][5] + Freq1[freq][6])) {
+        isPeak_One[freq] = 1;
+      }
+      else {
+        isPeak_One[freq] = 0;
       }
     }
-    if (Frequencies_Two[freq_amp][0] < 90)
-    {
-      isPeak_Two[freq_amp] = 0;
+
+    if (Freq2[freq][0] < 90) {
+      isPeak_Two[freq] = 0;
     }
     else
     {
-      if ((Frequencies_Two[freq_amp][0] - Frequencies_Two[freq_amp][1] > 50) || (Frequencies_Two[freq_amp][2]+Frequencies_Two[freq_amp][1] < Frequencies_Two[freq_amp][1]+Frequencies_Two[freq_amp][0]))
-      {
-        isPeak_Two[freq_amp] = 1;
+      if ((Freq2[freq][0] - Freq2[freq][1] > 50)) {
+        isPeak_Two[freq] = 1;
       }
-      else
-      {
-        isPeak_Two[freq_amp] = 0;
+      else if ((Freq2[freq][0] + Freq2[freq][1] > Freq2[freq][1] + Freq2[freq][2]) || (Freq2[freq][1] + Freq2[freq][2] > Freq2[freq][2] + Freq2[freq][3]) || (Freq2[freq][2] + Freq2[freq][3] > Freq2[freq][3] + Freq2[freq][4]) || (Freq2[freq][3] + Freq2[freq][4] > Freq2[freq][4] + Freq2[freq][5]) || (Freq2[freq][4] + Freq2[freq][5] > Freq2[freq][5] + Freq2[freq][6])) {
+        isPeak_Two[freq] = 1;
+      }
+      else {
+        isPeak_Two[freq] = 0;
       }
     }
   }
@@ -300,9 +301,10 @@ void Read_Frequencies() {
 //display spectral sensor
 void displaySpectral() {
   Read_Frequencies();
+  //print Peaks
   byte highByte = 0;
   byte lowByte = 0;
-  for (int i = 0; i < 6; i++) { // Loop through the first 6 elements
+  for (int i = 0; i < 7; i++) { // Loop through the first 6 elements
     if (isPeak_One[i] == 1) {
       highByte |= (1 << 6-i); // Reverse position: set bit in lowByte instead of highByte
     }
@@ -312,13 +314,24 @@ void displaySpectral() {
   }
 
   // Handle the last element separately to light up 2 LEDs
-  if (isPeak_One[7] == 1) {
+  if (isPeak_One[0] == 1) {
     highByte |= (1 << 7); // Reverse position: set the 7th bit in lowByte
+    highByte |= (1 << 8); // Reverse position: set the 8th bit in lowByte
   }
-  if (isPeak_Two[7] == 1) {
-    lowByte |= (1 << 7); // Reverse position: set the 8th bit in highByte
+  if (isPeak_Two[0] == 1) {
+    lowByte |= (1 << 7); // Reverse position: set the 7th bit in highByte
+    lowByte |= (1 << 8); // Reverse position: set the 7th bit in highByte
   }
-
+  
+  //print values of peaks in serial
+  for (int i = 0; i < 6; i++) {
+    Serial.print(isPeak_One[i]);
+    Serial.print(F(","));
+    Serial.print(isPeak_Two[i]);
+    Serial.print(F(","));
+  }
+  Serial.println();
+  
   // Send the bytes to the shift registers
   digitalWrite(latchPin, LOW);    // Start sending data
   shiftOut(dataPin, clockPin, MSBFIRST, highByte);  // Send high byte first
@@ -373,7 +386,7 @@ void loop() {
   //display distance on OLED
   //displayDistTemp();
   //delay 
-  
+  delay(1);
   
 }
 
